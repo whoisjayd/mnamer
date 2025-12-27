@@ -95,12 +95,14 @@ def parse_remote_path(path: str | Path) -> tuple[str, str]:
         ("gdrive", "/movies/test.mkv")
     """
     path_str = str(path)
-    if ":" in path_str:
-        parts = path_str.split(":", 1)
-        return parts[0], parts[1]
-    return "", path_str
 
+    # Ensure consistent handling of Windows drive letters by reusing is_remote_path.
+    # If the path does not look like an rclone remote, return it unchanged.
+    if not is_remote_path(path_str):
+        return "", path_str
 
+    parts = path_str.split(":", 1)
+    return parts[0], parts[1]
 def rclone_lsf(
     remote_path: str | Path, recursive: bool = False, files_only: bool = True
 ) -> list[str]:
