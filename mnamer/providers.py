@@ -46,7 +46,8 @@ class Provider(ABC):
 
     @classmethod
     def from_settings(cls, settings: SettingStore):
-        assert settings
+        if not settings:
+            raise ValueError("Settings cannot be None")
         api_field = f"api_key_{cls.__name__.lower()}"
         api_key = getattr(settings, api_field)
         cache = not settings.no_cache
@@ -79,7 +80,8 @@ class Omdb(Provider):
 
     def search(self, query: MetadataMovie) -> Iterator[MetadataMovie]:
         """Searches OMDb for movie metadata."""
-        assert query
+        if not query:
+            raise ValueError("Query cannot be None")
         if query.id_imdb:
             results = self._lookup_movie(query.id_imdb)
         elif query.name:
@@ -89,7 +91,8 @@ class Omdb(Provider):
         yield from results
 
     def _lookup_movie(self, id_imdb: str) -> Iterator[MetadataMovie]:
-        assert self.api_key
+        if not self.api_key:
+            raise ValueError("API key is required")
         response = omdb_title(self.api_key, id_imdb, cache=self.cache)
         try:
             release_date = dt.datetime.strptime(
@@ -111,7 +114,8 @@ class Omdb(Provider):
         yield meta
 
     def _search_movie(self, name: str, year: str | None) -> Iterator[MetadataMovie]:
-        assert self.api_key
+        if not self.api_key:
+            raise ValueError("API key is required")
         year_from, year_to = year_range_parse(year, 5)
         found = False
         page = 1
@@ -145,11 +149,13 @@ class Tmdb(Provider):
 
     def __init__(self, api_key: str | None = None, cache: bool = True):
         super().__init__(api_key, cache)
-        assert self.api_key
+        if not self.api_key:
+            raise ValueError("API key is required for TMDb")
 
     def search(self, query: MetadataMovie) -> Iterator[MetadataMovie]:
         """Searches TMDb for movie metadata."""
-        assert query
+        if not query:
+            raise ValueError("Query cannot be None")
         if query.id_tmdb:
             results = self._search_id(query.id_tmdb, query.language)
         elif query.name:
@@ -161,7 +167,8 @@ class Tmdb(Provider):
     def _search_id(
         self, id_tmdb: str, language: Language | None = None
     ) -> Iterator[MetadataMovie]:
-        assert self.api_key
+        if not self.api_key:
+            raise ValueError("API key is required")
         response = tmdb_movies(self.api_key, id_tmdb, language, self.cache)
         yield MetadataMovie(
             name=response["title"],
@@ -173,7 +180,8 @@ class Tmdb(Provider):
         )
 
     def _search_name(self, name: str, year: str | None, language: Language | None):
-        assert self.api_key
+        if not self.api_key:
+            raise ValueError("API key is required")
         page = 1
         page_max = 5  # each page yields a maximum of 20 results
         found = False
@@ -217,7 +225,8 @@ class Tvdb(Provider):
 
     def __init__(self, api_key: str | None = None, cache: bool = True):
         super().__init__(api_key, cache)
-        assert self.api_key
+        if not self.api_key:
+            raise ValueError("API key is required for TVDb")
         self.token = "" if self.cache else self._login()
 
     def _login(self) -> str:
@@ -225,7 +234,8 @@ class Tvdb(Provider):
 
     def search(self, query: MetadataEpisode) -> Iterator[MetadataEpisode]:
         """Searches TVDb for movie metadata."""
-        assert query
+        if not query:
+            raise ValueError("Query cannot be None")
         if not self.token:
             self.token = self._login()
         if query.id_tvdb and query.date:
@@ -383,7 +393,8 @@ class TvMaze(Provider):
     def _lookup_with_id_and_date(
         self, id_tvmaze: str | None, id_tvdb: str | None, air_date: dt.date
     ) -> Iterator[MetadataEpisode]:
-        assert id_tvmaze or id_tvdb
+        if not id_tvmaze and not id_tvdb:
+            raise ValueError("Either id_tvmaze or id_tvdb must be provided")
         if id_tvmaze:
             series_data = tvmaze_show(id_tvmaze)
             query_id_tvmaze = id_tvmaze
@@ -405,7 +416,8 @@ class TvMaze(Provider):
         season: int | None,
         episode: int | None,
     ) -> Iterator[MetadataEpisode]:
-        assert id_tvmaze or id_tvdb
+        if not id_tvmaze and not id_tvdb:
+            raise ValueError("Either id_tvmaze or id_tvdb must be provided")
         if id_tvmaze:
             query_id_tvmaze = id_tvmaze
             series_data = tvmaze_show(id_tvmaze)
@@ -428,7 +440,8 @@ class TvMaze(Provider):
     def _search_with_season_and_episode(
         self, series: str, season: int | None, episode: int | None
     ) -> Iterator[MetadataEpisode]:
-        assert season
+        if not season:
+            raise ValueError("Season must be provided")
         series_data = tvmaze_show_search(series)
         for idx, series_entry in enumerate(series_data):
             if idx >= 3:
@@ -449,7 +462,8 @@ class TvMaze(Provider):
     def _search(
         self, series: str, season: int | None, episode: int | None
     ) -> Iterator[MetadataEpisode]:
-        assert series
+        if not series:
+            raise ValueError("Series name must be provided")
         series_data = tvmaze_show_search(series)
         for idx, series_entry in enumerate(series_data):
             if idx >= 3:

@@ -53,9 +53,9 @@ class Language:
         try:
             if getattr(value, "alpha3", None):
                 return cls(value.name, value.alpha2, value.alpha3)
-        except Exception:
+        except (AttributeError, TypeError):
             raise MnamerException("Could not determine language") from None
-        value = value.lower()
+        value = str(value).lower()
         for row in KNOWN_LANGUAGES:
             for item in row:
                 if value == item:
