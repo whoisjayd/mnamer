@@ -97,12 +97,48 @@ class Target:
         The destination Path for the target based on its metadata and user
         preferences.
         """
+        from mnamer import rclone
+
+        source_str = str(self.source)
+
         if self.directory:
             dir_head_ = format(self.metadata, str(self.directory))
             dir_head_ = str_sanitize(dir_head_)
-            dir_head = Path(dir_head_)
+            # Check if directory is a remote path
+            if rclone.is_remote_path(str(self.directory)):
+                # For remote paths, we need to handle differently
+                # Keep the remote prefix
+                remote_name, _ = rclone.parse_remote_path(str(self.directory))
+                # Construct remote path
+                file_path = format(
+                    self.metadata, self._settings.formatting_for(self.metadata)
+                )
+                dir_tail, filename = path.split(Path(file_path))
+                filename = filename_replace(filename, self._settings.replace_after)
+                if self._settings.scene:
+                    filename = str_scenify(filename)
+                if self._settings.lower:
+                    filename = filename.lower()
+                filename = str_sanitize(filename)
+
+                # Join remote path components
+                if dir_tail:
+                    full_path = rclone.join_remote_path(dir_head_, dir_tail, filename)
+                else:
+                    full_path = rclone.join_remote_path(dir_head_, filename)
+                return Path(full_path)
+            else:
+                dir_head = Path(dir_head_)
+        elif rclone.is_remote_path(source_str):
+            # If source is remote but no directory specified, keep in same remote location
+            remote_name, remote_path = rclone.parse_remote_path(source_str)
+            from pathlib import PurePosixPath
+
+            source_parent = str(PurePosixPath(remote_path).parent)
+            dir_head = Path(f"{remote_name}:{source_parent}")
         else:
             dir_head = self.source.parent
+
         file_path = format(self.metadata, self._settings.formatting_for(self.metadata))
         dir_tail, filename = path.split(Path(file_path))
         filename = filename_replace(filename, self._settings.replace_after)
@@ -111,8 +147,33 @@ class Target:
         if self._settings.lower:
             filename = filename.lower()
         filename = str_sanitize(filename)
+
+        # Handle remote paths
+        if rclone.is_remote_path(str(dir_head)):
+            if dir_tail:
+                full_path = rclone.join_remote_path(str(dir_head), dir_tail, filename)
+            else:
+                full_path = rclone.join_remote_path(str(dir_head), filename)
+            return Path(full_path)
+
+        # Handle local paths
         directory = Path(dir_head, dir_tail)
         return Path(directory, filename)
+
+    def destination_exists(self) -> bool:
+        """
+        Check if the destination path exists.
+        Handles both local and remote paths.
+
+        Returns:
+            True if destination exists, False otherwise
+        """
+        from mnamer import rclone
+
+        dest_str = str(self.destination)
+        if rclone.is_remote_path(dest_str):
+            return rclone.rclone_exists(dest_str)
+        return self.destination.exists()
 
     def _parse(self, file_path: Path):
         path_data: dict[str, Any] = {"language": self._settings.language}
@@ -240,9 +301,37 @@ class Target:
 
     def relocate(self) -> None:
         """Performs the action of renaming and/or moving a file."""
-        destination_path = Path(self.destination).resolve()
-        destination_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            move(str(self.source), destination_path)
-        except OSError as e:  # pragma: no cover
-            raise MnamerException from e
+        from mnamer import rclone
+
+        source_str = str(self.source)
+        destination_str = str(self.destination)
+
+        # Check if source or destination is remote
+        is_source_remote = rclone.is_remote_path(source_str)
+        is_dest_remote = rclone.is_remote_path(destination_str)
+
+        if is_source_remote or is_dest_remote:
+            # Handle remote operations with rclone
+            if is_dest_remote:
+                # Create parent directory on remote
+                remote_name, dest_path = rclone.parse_remote_path(destination_str)
+                if dest_path:
+                    from pathlib import PurePosixPath
+
+                    parent_path = str(PurePosixPath(dest_path).parent)
+                    if parent_path and parent_path != ".":
+                        parent_remote = f"{remote_name}:{parent_path}"
+                        rclone.rclone_mkdir(parent_remote)
+
+            # Use rclone to move the file
+            success = rclone.rclone_move(source_str, destination_str)
+            if not success:
+                raise MnamerException("rclone move failed")
+        else:
+            # Handle local file operations
+            destination_path = Path(self.destination).resolve()
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                move(str(self.source), destination_path)
+            except OSError as e:  # pragma: no cover
+                raise MnamerException from e

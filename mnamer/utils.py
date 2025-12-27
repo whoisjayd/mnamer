@@ -32,8 +32,26 @@ def clear_cache():
 
 def crawl_in(file_paths: list[Path], recurse: bool = False) -> list[Path]:
     """Looks for files amongst or within paths provided."""
+    from mnamer import rclone
+
     found_files = set()
     for file_path in file_paths:
+        file_path_str = str(file_path)
+
+        # Handle remote paths
+        if rclone.is_remote_path(file_path_str):
+            try:
+                files = rclone.rclone_lsf(file_path_str, recursive=recurse, files_only=True)
+                for file in files:
+                    # Join remote path with file
+                    full_path = rclone.join_remote_path(file_path_str, file)
+                    found_files.add(Path(full_path))
+            except Exception:
+                # If rclone fails, skip this path
+                pass
+            continue
+
+        # Handle local paths
         if not file_path.exists():
             continue
         if file_path.is_file():
@@ -167,7 +185,16 @@ def get_session() -> requests_cache.CachedSession:
 
 def get_filesize(path: Path) -> str:
     """Returns the human-readable filesize for a given path."""
-    size = float(getsize(path))
+    from mnamer import rclone
+
+    path_str = str(path)
+
+    # Handle remote paths
+    if rclone.is_remote_path(path_str):
+        size = float(rclone.rclone_size(path_str))
+    else:
+        size = float(getsize(path))
+
     units = ["B", "KB", "MB", "GB", "TB"]
     for i, unit in enumerate(units):
         if size < 1024.0 or i == len(units) - 1:
