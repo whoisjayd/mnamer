@@ -3,6 +3,7 @@
 import datetime as dt
 import json
 import re
+import subprocess
 from collections.abc import Callable, Iterator
 from os import walk
 from os.path import exists, expanduser, expandvars, getsize, splitdrive, splitext
@@ -10,6 +11,7 @@ from pathlib import Path, PurePath
 from typing import Any
 from unicodedata import normalize
 
+import requests
 import requests_cache
 from requests.adapters import HTTPAdapter
 
@@ -47,8 +49,8 @@ def crawl_in(file_paths: list[Path], recurse: bool = False) -> list[Path]:
                     # Join remote path with file
                     full_path = rclone.join_remote_path(file_path_str, file)
                     found_files.add(Path(full_path))
-            except Exception:
-                # If rclone fails, skip this path
+            except (OSError, subprocess.SubprocessError, ValueError):
+                # If rclone fails (not installed, network error, invalid path), skip this path
                 pass
             continue
 
@@ -192,7 +194,12 @@ def get_filesize(path: Path) -> str:
     if rclone.is_remote_path(path_str):
         size = float(rclone.rclone_size(path_str))
     else:
+        if not path.exists():
+            return "0B"
         size = float(getsize(path))
+
+    if size == 0:
+        return "0B"
 
     units = ["B", "KB", "MB", "GB", "TB"]
     for i, unit in enumerate(units):
@@ -220,15 +227,24 @@ def json_loads(path: str) -> dict[str, Any]:
     path = expanduser(path)
     path = expandvars(path)
     if exists(path):
-        with open(path) as fp:
-            json_data = fp.read()
-    return json.loads(json_data) if json_data else {}
+        try:
+            with open(path, encoding="utf-8") as fp:
+                json_data = fp.read()
+        except OSError:
+            # Handle file read errors gracefully
+            return {}
+    try:
+        return json.loads(json_data) if json_data else {}
+    except json.JSONDecodeError:
+        # Handle malformed JSON gracefully
+        return {}
 
 
 def normalize_container(container: str) -> str:
     """Ensures all containers begin with a dot."""
-    assert container
-    if container and container[0] != ".":
+    if not container:
+        raise ValueError("Container cannot be empty")
+    if container[0] != ".":
         container = f".{container}"
     return container.lower()
 
@@ -243,7 +259,10 @@ def parse_date(value: str | dt.date | dt.datetime) -> dt.date:
     if isinstance(value, str):
         value = value.replace("/", "-")
         value = value.replace(".", "-")
-        value = dt.datetime.strptime(value, "%Y-%m-%d")
+        try:
+            value = dt.datetime.strptime(value, "%Y-%m-%d")
+        except ValueError as e:
+            raise ValueError(f"Invalid date format: {value}") from e
     if isinstance(value, dt.datetime):
         value = value.date()
     return value
@@ -262,7 +281,8 @@ def request_json(
     Note: Requests are cached using requests_cached for a week, this is done
     transparently by using the package's monkey patching.
     """
-    assert url
+    if not url:
+        raise ValueError("URL cannot be empty")
     session = get_session()
 
     if isinstance(headers, dict):
@@ -291,11 +311,16 @@ def request_json(
             json=body,
             headers=headers,
             method=method,
-            timeout=1,
+            timeout=10,
         )
         status = response.status_code
         content = response.json() if status // 100 == 2 else None
+    except (requests.exceptions.RequestException, ValueError, KeyError):
+        # Handle network errors, JSON decode errors, and key errors
+        content = None
+        status = 500
     except Exception:
+        # Catch any other unexpected errors
         content = None
         status = 500
     finally:
@@ -337,6 +362,9 @@ def str_replace_slashes(s: str) -> str:
 
 def str_sanitize(filename: str) -> str:
     """Removes illegal filename characters and condenses whitespace."""
+    if not filename:
+        return ""
+
     base, container = splitext(filename)
     if is_subtitle(container):
         base = base.rstrip(".")
@@ -344,6 +372,8 @@ def str_sanitize(filename: str) -> str:
         container = container_prefix + container
     base = re.sub(r"\s+", " ", base)
     drive, tail = splitdrive(base)
+    # Remove dangerous path traversal sequences
+    tail = tail.replace("..", "")
     tail = re.sub(r'[<>:"|?*&%=+@#`^]', "", tail)
     return drive + tail.strip("-., ") + container
 

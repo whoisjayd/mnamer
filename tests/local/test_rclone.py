@@ -91,6 +91,11 @@ class TestJoinRemotePath:
 class TestCheckRcloneInstalled:
     """Tests for check_rclone_installed function."""
 
+    def setup_method(self):
+        """Reset cache before each test."""
+        from mnamer import rclone
+        rclone._reset_rclone_cache()
+
     @patch("subprocess.run")
     def test_rclone_installed(self, mock_run):
         """Test when rclone is installed."""

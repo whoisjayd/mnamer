@@ -29,7 +29,8 @@ class _MetaFormatter(Formatter):
         self, key: str | int, args: Sequence[Any], kwargs: Mapping[str, Any]
     ) -> None | int | str:
         if isinstance(key, int):
-            assert args
+            if not args:
+                return ""
             return args[key]
         else:
             return kwargs.get(key, "")

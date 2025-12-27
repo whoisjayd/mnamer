@@ -83,7 +83,8 @@ class Target:
     @property
     def provider_type(self) -> ProviderType:
         provider_type = self._settings.api_for(self.metadata.to_media_type())
-        assert provider_type
+        if not provider_type:
+            raise ValueError("No provider type configured for this media type")
         return provider_type
 
     @property

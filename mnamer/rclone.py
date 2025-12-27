@@ -5,6 +5,15 @@ import re
 import subprocess
 from pathlib import Path, PurePosixPath
 
+# Cache for rclone installation check
+_RCLONE_INSTALLED: bool | None = None
+
+
+def _reset_rclone_cache():
+    """Reset the rclone installation cache. Used for testing."""
+    global _RCLONE_INSTALLED
+    _RCLONE_INSTALLED = None
+
 
 def is_remote_path(path: str | Path) -> bool:
     """
@@ -37,6 +46,11 @@ def check_rclone_installed() -> bool:
     Returns:
         True if rclone is installed, False otherwise
     """
+    global _RCLONE_INSTALLED
+    # Use cache if available
+    if _RCLONE_INSTALLED is not None:
+        return _RCLONE_INSTALLED
+
     try:
         subprocess.run(
             ["rclone", "version"],
@@ -44,12 +58,14 @@ def check_rclone_installed() -> bool:
             check=True,
             timeout=5,
         )
+        _RCLONE_INSTALLED = True
         return True
     except (
         subprocess.CalledProcessError,
         FileNotFoundError,
         subprocess.TimeoutExpired,
     ):
+        # Don't cache negative results to allow recovery if rclone is installed later
         return False
 
 
@@ -115,8 +131,11 @@ def rclone_lsf(
         files_only: If True, only list files (not directories)
 
     Returns:
-        List of file paths relative to remote_path
+        List of file paths relative to remote_path. Returns empty list on error.
     """
+    if not check_rclone_installed():
+        return []
+
     cmd = ["rclone", "lsf"]
 
     if recursive:
@@ -138,11 +157,8 @@ def rclone_lsf(
             line.strip() for line in result.stdout.strip().split("\n") if line.strip()
         ]
         return files
-    except (
-        subprocess.CalledProcessError,
-        FileNotFoundError,
-        subprocess.TimeoutExpired,
-    ):
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        # Return empty list on error to maintain backwards compatibility
         return []
 
 
@@ -210,6 +226,7 @@ def rclone_exists(remote_path: str | Path) -> bool:
         files = rclone_lsf(parent_remote, recursive=False, files_only=False)
         return filename in files
     except Exception:
+        # Handle all rclone errors gracefully (including unexpected errors)
         return False
 
 
