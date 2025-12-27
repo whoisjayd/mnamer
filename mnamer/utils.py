@@ -13,6 +13,7 @@ from unicodedata import normalize
 import requests_cache
 from requests.adapters import HTTPAdapter
 
+from mnamer import rclone
 from mnamer.const import CACHE_PATH, CURRENT_YEAR, SUBTITLE_CONTAINERS
 
 
@@ -32,8 +33,6 @@ def clear_cache():
 
 def crawl_in(file_paths: list[Path], recurse: bool = False) -> list[Path]:
     """Looks for files amongst or within paths provided."""
-    from mnamer import rclone
-
     found_files = set()
     for file_path in file_paths:
         file_path_str = str(file_path)
@@ -187,8 +186,6 @@ def get_session() -> requests_cache.CachedSession:
 
 def get_filesize(path: Path) -> str:
     """Returns the human-readable filesize for a given path."""
-    from mnamer import rclone
-
     path_str = str(path)
 
     # Handle remote paths

@@ -8,6 +8,7 @@ from typing import Any, ClassVar
 
 from guessit import guessit  # type: ignore
 
+from mnamer import rclone
 from mnamer.exceptions import MnamerException
 from mnamer.language import Language
 from mnamer.metadata import Metadata, MetadataEpisode, MetadataMovie
@@ -97,8 +98,6 @@ class Target:
         The destination Path for the target based on its metadata and user
         preferences.
         """
-        from mnamer import rclone
-
         source_str = str(self.source)
 
         if self.directory:
@@ -166,8 +165,6 @@ class Target:
         Returns:
             True if destination exists, False otherwise
         """
-        from mnamer import rclone
-
         dest_str = str(self.destination)
         if rclone.is_remote_path(dest_str):
             return rclone.rclone_exists(dest_str)
@@ -299,8 +296,6 @@ class Target:
 
     def relocate(self) -> None:
         """Performs the action of renaming and/or moving a file."""
-        from mnamer import rclone
-
         source_str = str(self.source)
         destination_str = str(self.destination)
 
