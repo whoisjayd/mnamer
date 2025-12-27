@@ -144,7 +144,7 @@ class Cli(Frontend):
                     MessageType.ALERT,
                 )
                 continue
-            if self.settings.no_overwrite and target.destination.exists():
+            if self.settings.no_overwrite and target.destination_exists():
                 tty.msg("skipping (--no-overwrite)", MessageType.ALERT)
                 continue
 
