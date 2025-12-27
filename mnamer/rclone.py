@@ -1,9 +1,9 @@
 """Utilities for working with remote paths via rclone."""
 
+import json
 import re
 import subprocess
 from pathlib import Path, PurePosixPath
-from typing import Any
 
 
 def is_remote_path(path: str | Path) -> bool:
@@ -40,7 +40,11 @@ def check_rclone_installed() -> bool:
             timeout=5,
         )
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+    except (
+        subprocess.CalledProcessError,
+        FileNotFoundError,
+        subprocess.TimeoutExpired,
+    ):
         return False
 
 
@@ -59,9 +63,15 @@ def rclone_listremotes() -> list[str]:
             text=True,
             timeout=10,
         )
-        remotes = [line.rstrip(":") for line in result.stdout.strip().split("\n") if line]
+        remotes = [
+            line.rstrip(":") for line in result.stdout.strip().split("\n") if line
+        ]
         return remotes
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+    except (
+        subprocess.CalledProcessError,
+        FileNotFoundError,
+        subprocess.TimeoutExpired,
+    ):
         return []
 
 
@@ -117,9 +127,15 @@ def rclone_lsf(
             text=True,
             timeout=60,
         )
-        files = [line.strip() for line in result.stdout.strip().split("\n") if line.strip()]
+        files = [
+            line.strip() for line in result.stdout.strip().split("\n") if line.strip()
+        ]
         return files
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+    except (
+        subprocess.CalledProcessError,
+        FileNotFoundError,
+        subprocess.TimeoutExpired,
+    ):
         return []
 
 
@@ -143,8 +159,6 @@ def rclone_size(remote_path: str | Path) -> int:
             text=True,
             timeout=30,
         )
-        import json
-
         data = json.loads(result.stdout)
         return int(data.get("bytes", 0))
     except (
@@ -213,7 +227,11 @@ def rclone_move(source: str | Path, destination: str | Path) -> bool:
             timeout=300,  # 5 minutes for large files
         )
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+    except (
+        subprocess.CalledProcessError,
+        FileNotFoundError,
+        subprocess.TimeoutExpired,
+    ):
         return False
 
 
@@ -237,7 +255,11 @@ def rclone_mkdir(remote_path: str | Path) -> bool:
             timeout=30,
         )
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+    except (
+        subprocess.CalledProcessError,
+        FileNotFoundError,
+        subprocess.TimeoutExpired,
+    ):
         return False
 
 

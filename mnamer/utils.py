@@ -41,7 +41,9 @@ def crawl_in(file_paths: list[Path], recurse: bool = False) -> list[Path]:
         # Handle remote paths
         if rclone.is_remote_path(file_path_str):
             try:
-                files = rclone.rclone_lsf(file_path_str, recursive=recurse, files_only=True)
+                files = rclone.rclone_lsf(
+                    file_path_str, recursive=recurse, files_only=True
+                )
                 for file in files:
                     # Join remote path with file
                     full_path = rclone.join_remote_path(file_path_str, file)

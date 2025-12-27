@@ -36,6 +36,31 @@ Language is supported by the default TMDb and TVDb providers. You can use the `-
 
 mnamer also supports subtitle files (.srt, .idx, .sub). It will use the format pattern used for movie or episode media files with its extension prefixed by its 2-letter language code.
 
+☁️ [**Remote Paths (rclone)**](#remote-paths-rclone)
+
+mnamer supports working with remote storage via [rclone](https://rclone.org/). You can process files on cloud storage (Google Drive, Dropbox, S3, etc.) and move them to local or remote destinations.
+
+**Requirements:**
+- Install rclone: `curl https://rclone.org/install.sh | sudo bash`
+- Configure your remote: `rclone config`
+
+**Usage:**
+```bash
+# Process files on remote storage
+mnamer --batch "gdrive:/media/unsorted"
+
+# Move from remote to local
+mnamer --batch --movie-directory="/local/movies" "gdrive:/downloads/*.mkv"
+
+# Move from local to remote
+mnamer --batch --movie-directory="gdrive:/movies" "/local/downloads/*.mkv"
+
+# Move between remotes
+mnamer --batch --episode-directory="s3:shows" "gdrive:/downloads/episodes"
+```
+
+Remote paths use the format `remote_name:path/to/file` where `remote_name` is configured in your rclone config.
+
 🧰 [**Settings**](https://github.com/jkwill87/mnamer/wiki/Settings)
 
 ```
