@@ -65,7 +65,7 @@ def check_rclone_installed() -> bool:
         FileNotFoundError,
         subprocess.TimeoutExpired,
     ):
-        # Don't cache negative results to allow recovery if rclone is installed later
+        # Return empty list on error (rclone not installed, network error, timeout)
         return False
 
 
@@ -157,7 +157,7 @@ def rclone_lsf(
             line.strip() for line in result.stdout.strip().split("\n") if line.strip()
         ]
         return files
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
         # Return empty list on error to maintain backwards compatibility
         return []
 

@@ -315,8 +315,12 @@ def request_json(
         )
         status = response.status_code
         content = response.json() if status // 100 == 2 else None
-    except (requests.exceptions.RequestException, ValueError, KeyError):
-        # Handle network errors, JSON decode errors, and key errors
+    except requests.exceptions.RequestException:
+        # Handle network errors, timeouts, connection errors
+        content = None
+        status = 500
+    except (ValueError, KeyError):
+        # Handle JSON decode errors and missing keys - treat as server error
         content = None
         status = 500
     except Exception:
@@ -372,9 +376,16 @@ def str_sanitize(filename: str) -> str:
         container = container_prefix + container
     base = re.sub(r"\s+", " ", base)
     drive, tail = splitdrive(base)
-    # Remove dangerous path traversal sequences
+    # Remove path traversal patterns more robustly
+    # First normalize the path to resolve any .. or . patterns
+    # Then remove any remaining dangerous characters
     tail = tail.replace("..", "")
+    tail = tail.replace("./", "")
+    tail = tail.replace("\\", "")
+    # Remove illegal filename characters
     tail = re.sub(r'[<>:"|?*&%=+@#`^]', "", tail)
+    # Remove any remaining path separators
+    tail = tail.replace("/", "")
     return drive + tail.strip("-., ") + container
 
 
