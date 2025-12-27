@@ -4,8 +4,6 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from mnamer.rclone import (
     check_rclone_installed,
     is_remote_path,
