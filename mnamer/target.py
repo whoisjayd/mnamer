@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 from os import path
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from shutil import move
 from typing import Any, ClassVar
 
@@ -132,8 +132,6 @@ class Target:
         elif rclone.is_remote_path(source_str):
             # If source is remote but no directory specified, keep in same remote location
             remote_name, remote_path = rclone.parse_remote_path(source_str)
-            from pathlib import PurePosixPath
-
             source_parent = str(PurePosixPath(remote_path).parent)
             dir_head = Path(f"{remote_name}:{source_parent}")
         else:
@@ -316,8 +314,6 @@ class Target:
                 # Create parent directory on remote
                 remote_name, dest_path = rclone.parse_remote_path(destination_str)
                 if dest_path:
-                    from pathlib import PurePosixPath
-
                     parent_path = str(PurePosixPath(dest_path).parent)
                     if parent_path and parent_path != ".":
                         parent_remote = f"{remote_name}:{parent_path}"
@@ -326,7 +322,10 @@ class Target:
             # Use rclone to move the file
             success = rclone.rclone_move(source_str, destination_str)
             if not success:
-                raise MnamerException("rclone move failed")
+                raise MnamerException(
+                    f"Failed to move file from '{source_str}' to '{destination_str}' using rclone. "
+                    "Please ensure rclone is installed and the remote paths are accessible."
+                )
         else:
             # Handle local file operations
             destination_path = Path(self.destination).resolve()

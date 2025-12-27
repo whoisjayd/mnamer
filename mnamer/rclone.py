@@ -18,10 +18,15 @@ def is_remote_path(path: str | Path) -> bool:
 
     Returns:
         True if path appears to be a remote rclone path
+
+    Note:
+        The detection uses a regex pattern that matches paths with a colon
+        but excludes Windows drive letters (single character followed by colon).
+        Pattern: ^[^/\\]{2,}: matches at least 2 non-slash characters before a colon.
     """
     path_str = str(path)
     # Remote paths contain a colon not associated with Windows drive letters
-    # Pattern: name:path where name doesn't look like a Windows drive (single letter)
+    # Pattern matches: "remote:" or "remote:path" but not "C:" or "C:\path"
     return bool(re.match(r"^[^/\\]{2,}:", path_str))
 
 
